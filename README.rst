@@ -190,3 +190,5 @@ written to the console, you can add a handler that writes to stderr::
 
 The log level and format can be adjusted as well. See the documentation on the
 logging module for more information on how to do this.
+
+`Documentation <http://merry-py.readthedocs.io/en/latest/>`_
