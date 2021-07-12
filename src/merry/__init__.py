@@ -28,6 +28,14 @@ class Merry(object):
         self.debug = debug
         self.except_ = {}
         self.force_debug = []
+
+        # Dictionaries to register handlers for except, else and finally
+        # methods. Keys are the function names.
+        # Values are exception-handler dictionaries
+        self.function_exception_handler_map = {}
+        self.function_else_handler_map = {}
+        self.function_finally_handler_map = {}
+        self.last_try = None
         self.force_handle = []
         self.else_ = None
         self.finally_ = None
@@ -41,6 +49,15 @@ class Merry(object):
             def my_function():
                 # do something here
         """
+        name = f.__name__
+        if name not in self.function_exception_handler_map:
+            self.function_exception_handler_map[name] = {}
+        if name not in self.function_else_handler_map:
+            self.function_else_handler_map[name] = None
+        if name not in self.function_finally_handler_map:
+            self.function_finally_handler_map[name] = None
+        self.last_try = name
+
         @wraps(f)
         def wrapper(*args, **kwargs):
             ret = None
@@ -52,7 +69,15 @@ class Merry(object):
                 # try/except/else block.
                 if ret is not None:
                     return ret
-            except Exception as e:
+            except Exception as e: 
+
+                # If an handler hasn't been registered for the function create
+                # a dictionary for the function.
+
+                self.except_ = self.function_exception_handler_map[name]
+                self.else_ = self.function_else_handler_map[name]
+                self.finally_ = self.function_finally_handler_map[name]
+
                 # find the best handler for this exception
                 handler = None
                 for c in self.except_.keys():
@@ -111,10 +136,32 @@ class Merry(object):
                        exceptions. Pass ``debug=False`` to prevent the error
                        from bubbling up, even if debug mode is enabled
                        globally.
+                       Pass the ``for_`` argument to  register the handler for
+                       a function with name specified as the argument value.
+                       The value must be a string or the function that was 
+                       registered with the _try decorator.
+                       note that the function must have been decorated with a
+                       _try decorator.
         """
         def decorator(f):
-            for e in args:
-                self.except_[e] = f
+            for_ = kwargs.get('for_')
+            if callable(for_):
+                for_ = for_.__name__
+            if self.last_try is None and not for_:
+                raise Exception("_except decorator must be used after a _try \
+                    decorator has been used or 'for_' keyword argument must be\
+                     specified with the function name as the value.")
+
+            if for_:
+                for e in args:
+                    if for_ in self.function_exception_handler_map:
+                        self.function_exception_handler_map[for_][e] = f
+                    else:
+                        raise Exception(for_ + " does not exist or has not been \
+                            decorated with _try decorator")
+            else:
+                for e in args:
+                    self.function_exception_handler_map[self.last_try][e] = f
             d = kwargs.get('debug', None)
             if d:
                 self.force_debug.append(e)
@@ -123,17 +170,76 @@ class Merry(object):
             return f
         return decorator
 
+    def _else_for(self, for_):
+        """Decorator to define the ``else`` clause handler.
+        
+        Example usage::
+
+            @merry._else_for('do_something')
+            def else_handler():
+                print('no exceptions were raised')
+
+        :param for_: Register the handler for a function with name specified 
+                     as the argument value.
+                     The value must be a string or the function that was 
+                     registered with the _try decorator.
+                     note that the function must have been decorated with a
+                     _try decorator.
+        """
+        def inner(f):
+            if callable(for_):
+                for_ = for_.__name__
+            if for_ in self.function_else_handler_map:
+                self.function_else_handler_map[for_][e] = f
+            else:
+                raise Exception(for_ + " does not exist or has not been \
+                        decorated with _try decorator")
+            self.function_else_handler_map[self.last_try] = f
+            return f
+        return inner
+
     def _else(self, f):
         """Decorator to define the ``else`` clause handler.
-
+        
         Example usage::
 
             @merry._else
             def else_handler():
                 print('no exceptions were raised')
         """
-        self.else_ = f
+        if self.last_try is None:
+            raise Exception("_else decorator must be used after a _try \
+                decorator has been used.")
+        self.function_else_handler_map[self.last_try] = f
         return f
+
+    def _finally_for(self, for_):
+        """Decorator to define the ``finally`` clause handler.
+
+        Example usage::
+
+            @merry._finally_for('do_something')
+            def finally_handler():
+                print('clean up')
+
+        :param for_: Register the handler for a function with name specified 
+                     as the argument value.
+                     The value must be a string or the function that was 
+                     registered with the _try decorator.
+                     note that the function must have been decorated with a
+                     _try decorator.
+        """
+        def inner(f):
+            if callable(for_):
+                for_ = for_.__name__
+            if for_ in self.function_finally_handler_map:
+                self.function_finally_handler_map[for_][e] = f
+            else:
+                raise Exception(for_ + " does not exist or has not been \
+                    decorated with _try decorator")
+            self.function_finally_handler_map[self.last_try] = f
+            return f
+        return inner
 
     def _finally(self, f):
         """Decorator to define the ``finally`` clause handler.
@@ -144,5 +250,8 @@ class Merry(object):
             def finally_handler():
                 print('clean up')
         """
-        self.finally_ = f
+        if self.last_try is None:
+            raise Exception("_finally decorator must be used after a _try \
+                decorator has been used.")
+        self.function_finally_handler_map[self.last_try] = f
         return f
