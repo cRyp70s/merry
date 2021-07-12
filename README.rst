@@ -54,10 +54,9 @@ function, is now completely clean of try/except statements. The exception
 handlers become auxiliary functions that can even be moved to a separate
 module so that they stay completely out of the way.
 
-In the original merrry handlers registered with ``_except``, ``_else`` and
+In the original merry library, handlers registered with ``_except``, ``_else`` and
 ``_finally`` are used for all functions decorated with ``_try``.
-This fork of merry addresses the issue and makes the handlers 
-function-specific.
+This fork of merry makes the handlers function-specific.
 
 Access to the Exception Object
 ------------------------------
