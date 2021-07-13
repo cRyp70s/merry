@@ -90,8 +90,8 @@ decorators available for ``else`` and ``finally``::
     def finally_clause():
         print('Clean up time!')
 
-The `else_for` and `finally_for`
---------------------------------
+The `else_for` and `finally_for` clauses
+-----------------------------------------
 These are like the `else` and `finally` clauses except that the decorators
 take an argument equivalent to the `for_` argument in the `except` clause::
 
